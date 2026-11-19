@@ -1,0 +1,572 @@
+{
+  "info": {
+    "_postman_id": "d92f46c7-42e5-4e61-a95f-5c9cb6d9e5e1",
+    "name": "Concurrent Balance Service - Interview Lab",
+    "description": "API workflow for the Ledger-First concurrent balance service. Includes account lifecycle, credit/debit/transfer, idempotency, validation, overdraft protection and reconciliation. Amounts are integer minor units.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "sourceAccountId",
+      "value": "POSTMAN-SOURCE"
+    },
+    {
+      "key": "destinationAccountId",
+      "value": "POSTMAN-DEST"
+    },
+    {
+      "key": "creditTransactionId",
+      "value": "POSTMAN-CREDIT-001"
+    },
+    {
+      "key": "debitTransactionId",
+      "value": "POSTMAN-DEBIT-001"
+    },
+    {
+      "key": "transferTransactionId",
+      "value": "POSTMAN-TRANSFER-001"
+    },
+    {
+      "key": "overdraftTransactionId",
+      "value": "POSTMAN-OVERDRAFT-001"
+    },
+    {
+      "key": "invalidTransactionId",
+      "value": "POSTMAN-INVALID-001"
+    },
+    {
+      "key": "reconciliationRunId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Account setup",
+      "item": [
+        {
+          "name": "01 - Create source account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts",
+            "description": "Creates the source wallet with 100000 minor units. Run once per clean environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"initialBalance\": 100000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Account created', () => pm.response.to.have.status(201));",
+                  "const location = pm.response.headers.get('Location');",
+                  "pm.test('Location header is returned', () => pm.expect(location).to.include(pm.environment.get('sourceAccountId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Create destination account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts",
+            "description": "Creates the destination wallet.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{destinationAccountId}}\",\n  \"initialBalance\": 25000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Account created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Read source balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/accounts/{{sourceAccountId}}/balance",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Balance read succeeds', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json(); pm.test('Initial balance is correct', () => pm.expect(body.balance).to.eql(100000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Idempotency",
+      "item": [
+        {
+          "name": "04 - Credit source account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/credit",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 5000,\n  \"transactionId\": \"{{creditTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Credit succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Transaction id is echoed', () => pm.expect(pm.response.json().transactionId).to.eql(pm.environment.get('creditTransactionId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Repeat same credit (idempotency)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/credit",
+            "description": "Send the exact same transactionId and payload. The operation must be applied once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 5000,\n  \"transactionId\": \"{{creditTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Idempotent retry succeeds', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05b - Verify duplicate credit was applied once",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/accounts/{{sourceAccountId}}/balance",
+            "description": "Immediately after the duplicate credit request, the balance must still be 105000."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Balance read succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Duplicate credit was not applied twice', () => pm.expect(pm.response.json().balance).to.eql(105000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Reuse transaction id with different payload (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/credit",
+            "description": "Same idempotency key with a different fingerprint must be rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 7000,\n  \"transactionId\": \"{{creditTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Idempotency conflict returns 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Money operations",
+      "item": [
+        {
+          "name": "07 - Debit source account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/debit",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 1000,\n  \"transactionId\": \"{{debitTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Debit succeeds', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Transfer source to destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/transfer",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountId\": \"{{sourceAccountId}}\",\n  \"destinationAccountId\": \"{{destinationAccountId}}\",\n  \"amount\": 12000,\n  \"transactionId\": \"{{transferTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Transfer succeeds', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Verify source balance after operations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/accounts/{{sourceAccountId}}/balance",
+            "description": "Expected: 100000 + 5000 - 1000 - 12000 = 92000."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Balance read succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Expected source balance', () => pm.expect(pm.response.json().balance).to.eql(92000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Verify destination balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/accounts/{{destinationAccountId}}/balance",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Balance read succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Expected destination balance', () => pm.expect(pm.response.json().balance).to.eql(37000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Error cases",
+      "item": [
+        {
+          "name": "11 - Reject overdraft (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/debit",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 999999999,\n  \"transactionId\": \"{{overdraftTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Insufficient balance returns 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Reject zero amount (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/transactions/credit",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{sourceAccountId}}\",\n  \"amount\": 0,\n  \"transactionId\": \"{{invalidTransactionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Validation error returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - Reject unknown account (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/accounts/DOES-NOT-EXIST/balance",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown account returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Reconciliation",
+      "item": [
+        {
+          "name": "14 - On-demand reconciliation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reconciliation",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reconciliation succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Report contains account differences array', () => pm.expect(pm.response.json().differences).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 - Run and persist reconciliation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/reconciliation/runs",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Run returns a report', () => pm.response.to.have.status(200));",
+                  "const body=pm.response.json();",
+                  "pm.test('Run has an id and status', () => { pm.expect(body.run.id).to.exist; pm.expect(body.run.status).to.be.oneOf(['SUCCESS','INCONSISTENT','FAILED','RUNNING']); });",
+                  "if (body.run.id) pm.environment.set('reconciliationRunId', body.run.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 - Get reconciliation history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reconciliation/runs",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('History endpoint succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('History is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 - Get reconciliation run details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reconciliation/runs/{{reconciliationRunId}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Run details endpoint succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Run contains differences', () => pm.expect(pm.response.json().differences).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
