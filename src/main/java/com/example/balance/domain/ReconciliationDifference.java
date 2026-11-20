@@ -21,8 +21,11 @@ public class ReconciliationDifference {
 
     protected ReconciliationDifference() {}
     public ReconciliationDifference(ReconciliationRun run, String accountId, long storedBalance, long ledgerBalance, long difference) {
-        this.run = run; this.accountId = accountId; this.storedBalance = storedBalance;
-        this.ledgerBalance = ledgerBalance; this.difference = difference;
+        this.run = run;
+        this.accountId = accountId;
+        this.storedBalance = storedBalance;
+        this.ledgerBalance = ledgerBalance;
+        this.difference = difference;
     }
     public String getAccountId() { return accountId; }
     public long getStoredBalance() { return storedBalance; }

@@ -13,7 +13,8 @@ public class ReconciliationRunner {
     private final BalanceService balanceService;
 
     public ReconciliationRunner(ReconciliationHistoryService history, BalanceService balanceService) {
-        this.history = history; this.balanceService = balanceService;
+        this.history = history;
+        this.balanceService = balanceService;
     }
 
     public Long runNow() {

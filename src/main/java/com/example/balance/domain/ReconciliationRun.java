@@ -1,6 +1,7 @@
 package com.example.balance.domain;
 
 import jakarta.persistence.*;
+
 import java.time.Instant;
 
 @Entity
@@ -9,7 +10,8 @@ import java.time.Instant;
         @Index(name = "idx_reconciliation_run_status", columnList = "status")
 })
 public class ReconciliationRun {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
@@ -45,11 +47,31 @@ public class ReconciliationRun {
         this.completedAt = Instant.now();
     }
 
-    public Long getId() { return id; }
-    public ReconciliationStatus getStatus() { return status; }
-    public Instant getStartedAt() { return startedAt; }
-    public Instant getCompletedAt() { return completedAt; }
-    public int getAccountCount() { return accountCount; }
-    public int getInconsistentAccountCount() { return inconsistentAccountCount; }
-    public String getErrorMessage() { return errorMessage; }
+    public Long getId() {
+        return id;
+    }
+
+    public ReconciliationStatus getStatus() {
+        return status;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    public int getAccountCount() {
+        return accountCount;
+    }
+
+    public int getInconsistentAccountCount() {
+        return inconsistentAccountCount;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 }

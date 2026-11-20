@@ -8,6 +8,7 @@ import com.example.balance.exception.ReconciliationRunNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -16,11 +17,14 @@ public class ReconciliationHistoryService {
     private final ReconciliationDifferenceRepository differences;
 
     public ReconciliationHistoryService(ReconciliationRunRepository runs, ReconciliationDifferenceRepository differences) {
-        this.runs = runs; this.differences = differences;
+        this.runs = runs;
+        this.differences = differences;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Long startRun() { return runs.saveAndFlush(new ReconciliationRun()).getId(); }
+    public Long startRun() {
+        return runs.saveAndFlush(new ReconciliationRun()).getId();
+    }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeRun(Long runId, ReconciliationReport report) {

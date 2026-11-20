@@ -20,6 +20,9 @@ public class LedgerEntry {
     private Instant createdAt=Instant.now();
     protected LedgerEntry() {}
     public LedgerEntry(FinancialTransaction transaction, Account account, String entrySide, long amount) {
-        this.transaction=transaction; this.account=account; this.entrySide=entrySide; this.amount=amount;
+        this.transaction=transaction;
+        this.account=account;
+        this.entrySide=entrySide;
+        this.amount=amount;
     }
 }

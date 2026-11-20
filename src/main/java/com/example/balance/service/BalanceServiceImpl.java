@@ -92,8 +92,12 @@ public class BalanceServiceImpl implements BalanceService {
             return;
         }
         FinancialTransaction tx = transactions.findByTransactionId(txId).orElseThrow();
-        String first = from.compareTo(to) < 0 ? from : to, second = from.compareTo(to) < 0 ? to : from;
-        Account a = lock(first), b = lock(second), source = from.equals(first) ? a : b, destination = to.equals(first) ? a : b;
+        String first = from.compareTo(to) < 0 ? from : to;
+        String second = from.compareTo(to) < 0 ? to : from;
+        Account a = lock(first);
+        Account b = lock(second);
+        Account source = from.equals(first) ? a : b;
+        Account destination = to.equals(first) ? a : b;
         if (source.getBalance() < amount) {
             log.warn("Transfer rejected due to insufficient balance source={} transactionId={}", from, txId);
             throw new InsufficientBalanceException(from);

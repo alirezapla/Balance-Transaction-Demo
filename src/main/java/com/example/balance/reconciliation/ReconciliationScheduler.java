@@ -12,12 +12,18 @@ import org.springframework.stereotype.Component;
 public class ReconciliationScheduler {
     private static final Logger log = LoggerFactory.getLogger(ReconciliationScheduler.class);
     private final ReconciliationRunner runner;
-    public ReconciliationScheduler(ReconciliationRunner runner) { this.runner = runner; }
+
+    public ReconciliationScheduler(ReconciliationRunner runner) {
+        this.runner = runner;
+    }
 
     @Scheduled(cron = "${app.reconciliation.scheduler.cron:0 0 2 * * *}", zone = "${app.reconciliation.scheduler.zone:UTC}")
     @SchedulerLock(name = "dailyLedgerReconciliation", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
     public void execute() {
-        try { runner.runNow(); }
-        catch (RuntimeException ex) { log.error("Scheduled reconciliation failed", ex); }
+        try {
+            runner.runNow();
+        } catch (RuntimeException ex) {
+            log.error("Scheduled reconciliation failed", ex);
+        }
     }
 }

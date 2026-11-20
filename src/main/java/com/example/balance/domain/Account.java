@@ -18,10 +18,14 @@ public class Account {
 
     protected Account() {}
     public Account(String accountId, String accountType, String normalBalanceSide, long balance) {
-        this.accountId = accountId; this.accountType = accountType;
-        this.normalBalanceSide = normalBalanceSide; this.balance = balance;
+        this.accountId = accountId;
+        this.accountType = accountType;
+        this.normalBalanceSide = normalBalanceSide;
+        this.balance = balance;
     }
-    public void changeBalance(long delta) { this.balance = Math.addExact(this.balance, delta); }
+    public void changeBalance(long delta) {
+        this.balance = Math.addExact(this.balance, delta);
+    }
     public Long getId() { return id; }
     public String getAccountId() { return accountId; }
     public String getAccountType() { return accountType; }
